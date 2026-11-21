@@ -15,7 +15,7 @@ use objc2_app_kit::{
     NSColor, NSControlStateValueOff, NSControlStateValueOn, NSEvent, NSEventModifierFlags, NSFont,
     NSFontAttributeName, NSForegroundColorAttributeName, NSGraphicsContext, NSImage, NSMenu,
     NSMenuItem, NSModalResponseOK, NSOpenPanel, NSRectFill, NSStringDrawing, NSTrackingArea,
-    NSTrackingAreaOptions, NSView, NSWindow, NSWindowStyleMask, NSWorkspace,
+    NSTrackingAreaOptions, NSView, NSWindow, NSWindowDelegate, NSWindowStyleMask, NSWorkspace,
 };
 use objc2_foundation::{
     ns_string, MainThreadMarker, NSArray, NSAttributedStringKey, NSDictionary, NSNotification,
@@ -835,10 +835,15 @@ define_class!(
         fn did_finish_launching(&self, _notification: &NSNotification) {
             self.build_ui();
         }
+    }
 
-        #[unsafe(method(applicationShouldTerminateAfterLastWindowClosed:))]
-        fn terminate_after_last_window(&self, _app: &NSApplication) -> bool {
-            true
+    unsafe impl NSWindowDelegate for AppDelegate {
+        // Quit when the main window is closed. Done explicitly instead of via
+        // applicationShouldTerminateAfterLastWindowClosed, which AppKit also
+        // evaluates when helper windows (such as tooltips) go away.
+        #[unsafe(method(windowWillClose:))]
+        fn window_will_close(&self, _notification: &NSNotification) {
+            NSApplication::sharedApplication(self.mtm()).terminate(None);
         }
     }
 );
@@ -914,6 +919,7 @@ impl AppDelegate {
         unsafe { window.setReleasedWhenClosed(false) };
         window.setTitle(&NSString::from_str(APP_NAME));
         window.setContentMinSize(NSSize::new(480.0, 320.0));
+        window.setDelegate(Some(ProtocolObject::from_ref(self)));
 
         let root = window.contentView().expect("window has a content view");
         let size = root.bounds().size;
@@ -1124,7 +1130,24 @@ impl AppDelegate {
     }
 }
 
+/// A GUI app has no terminal, so record a panic where it can be found:
+/// ~/Library/Logs/MacMonger-crash.log
+fn install_crash_log() {
+    let previous = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        if let Some(home) = std::env::var_os("HOME") {
+            let path = PathBuf::from(home).join("Library/Logs/MacMonger-crash.log");
+            let _ = std::fs::write(
+                path,
+                format!("MacMonger {}\n{}\n", env!("CARGO_PKG_VERSION"), info),
+            );
+        }
+        previous(info);
+    }));
+}
+
 pub fn run() {
+    install_crash_log();
     let mtm = MainThreadMarker::new().expect("must run on the main thread");
     let app = NSApplication::sharedApplication(mtm);
     let delegate = AppDelegate::new(mtm);

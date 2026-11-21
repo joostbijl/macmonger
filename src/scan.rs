@@ -58,30 +58,57 @@ struct Ctx<'a> {
     progress: &'a Progress,
 }
 
-/// Capacity and free bytes of the volume holding `path`.
-pub fn volume_space(path: &Path) -> (u64, u64) {
+/// Capacity of the volume holding `path`, its free bytes, and whether `path`
+/// is the root of that volume.
+#[cfg(target_os = "macos")]
+pub fn volume_info(path: &Path) -> (u64, u64, bool) {
+    // statfs rather than statvfs: 64-bit block counts, and it names the mount
+    // point. Comparing device numbers with the parent folder does not work
+    // here, because firmlinked folders such as /Applications live on the Data
+    // volume while their parent "/" is the system volume.
+    let real = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
+    let Ok(c) = std::ffi::CString::new(real.as_os_str().as_bytes()) else {
+        return (0, 0, false);
+    };
+    let mut s: libc::statfs = unsafe { std::mem::zeroed() };
+    // SAFETY: `c` is a valid NUL-terminated string and `s` a valid out pointer.
+    if unsafe { libc::statfs(c.as_ptr(), &mut s) } != 0 {
+        return (0, 0, false);
+    }
+    let unit = s.f_bsize as u64;
+    // SAFETY: the kernel NUL-terminates f_mntonname.
+    let mount = unsafe { std::ffi::CStr::from_ptr(s.f_mntonname.as_ptr()) };
+    (
+        (s.f_blocks as u64).saturating_mul(unit),
+        (s.f_bavail as u64).saturating_mul(unit),
+        mount.to_bytes() == real.as_os_str().as_bytes(),
+    )
+}
+
+#[cfg(not(target_os = "macos"))]
+pub fn volume_info(path: &Path) -> (u64, u64, bool) {
     let Ok(c) = std::ffi::CString::new(path.as_os_str().as_bytes()) else {
-        return (0, 0);
+        return (0, 0, false);
     };
     let mut s: libc::statvfs = unsafe { std::mem::zeroed() };
     // SAFETY: `c` is a valid NUL-terminated string and `s` a valid out pointer.
     if unsafe { libc::statvfs(c.as_ptr(), &mut s) } != 0 {
-        return (0, 0);
+        return (0, 0, false);
     }
     let unit = s.f_frsize as u64;
+    let dev = std::fs::metadata(path).map(|m| m.dev()).ok();
+    let is_mount = match (path.parent(), dev) {
+        (None, _) => true,
+        (Some(parent), Some(dev)) => std::fs::metadata(parent)
+            .map(|m| m.dev() != dev)
+            .unwrap_or(false),
+        _ => false,
+    };
     (
         (s.f_blocks as u64).saturating_mul(unit),
         (s.f_bavail as u64).saturating_mul(unit),
+        is_mount,
     )
-}
-
-fn is_mount_point(path: &Path, dev: u64) -> bool {
-    match path.parent() {
-        None => true,
-        Some(parent) => std::fs::metadata(parent)
-            .map(|m| m.dev() != dev)
-            .unwrap_or(true),
-    }
 }
 
 /// Extra devices that belong to the same disk as "/" on macOS, and the
@@ -227,10 +254,10 @@ pub fn scan(root: &Path, progress: &Progress) -> Option<Tree> {
         return None;
     }
     let mut tree = Tree::new(root.to_path_buf());
-    let (total, free) = volume_space(root);
+    let (total, free, is_volume) = volume_info(root);
     tree.total_space = total;
     tree.free_space = free;
-    tree.is_volume = is_mount_point(root, md.dev());
+    tree.is_volume = is_volume;
 
     let mut allowed_devs = vec![md.dev()];
     let defer_path = startup_disk_rules(root, &mut allowed_devs);
