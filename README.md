@@ -12,6 +12,23 @@ On a Mac with Rust installed (Apple Silicon, macOS 11 or later):
 This builds `target/MacMonger.app` and copies it to `/Applications`.
 Use `./build.sh` without `install` to only build the bundle.
 
+### Keeping Full Disk Access across rebuilds
+
+macOS ties the permission to the app's code signature. Without a certificate
+the build is ad-hoc signed, every build counts as a different app, and the
+permission has to be granted again each time. One-time fix:
+
+1. Keychain Access → menu Keychain Access → Certificate Assistant → Create a
+   Certificate. Name `MacMonger Signing`, Identity Type *Self-Signed Root*,
+   Certificate Type *Code Signing*.
+2. `./build.sh install` (it picks the certificate up by name; the first time
+   macOS asks to let `codesign` use the key: choose Always Allow).
+3. Clear the old entry and grant access once more:
+   `tccutil reset SystemPolicyAllFiles com.jaxeadv.macmonger`, then add
+   MacMonger under Full Disk Access and restart the app.
+
+Another identity can be used with `CODESIGN_IDENTITY="name" ./build.sh install`.
+
 ## Use
 
 | Action | How |
@@ -35,8 +52,7 @@ Right-click gives the same commands in a menu.
 - **Full Disk Access.** macOS hides parts of the disk from apps (Mail, Photos,
   other users, system data). Without access those folders are skipped and the
   map is incomplete, and macOS asks for permission folder by folder. Grant it
-  in System Settings → Privacy & Security → Full Disk Access. The app is
-  ad-hoc signed, so macOS may ask again after a rebuild.
+  in System Settings → Privacy & Security → Full Disk Access.
 - **Sizes are allocated space**, not file length, in decimal units like Finder
   (1 GB = 1 000 000 000 bytes). Sparse files (for example Docker disk images)
   count for what they really occupy; hard links are counted once.
