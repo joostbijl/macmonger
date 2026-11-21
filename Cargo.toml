@@ -1,0 +1,20 @@
+[package]
+name = "macmonger"
+version = "0.1.0"
+edition = "2021"
+description = "SpaceMonger 1.4-style disk space treemap for macOS"
+license = "MIT"
+repository = "https://github.com/joostbijl/macmonger"
+
+[dependencies]
+libc = "0.2"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+objc2-foundation = "0.3"
+objc2-app-kit = "0.3"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+strip = true

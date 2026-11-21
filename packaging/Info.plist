@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleName</key>
+	<string>MacMonger</string>
+	<key>CFBundleDisplayName</key>
+	<string>MacMonger</string>
+	<key>CFBundleIdentifier</key>
+	<string>com.jaxeadv.macmonger</string>
+	<key>CFBundleExecutable</key>
+	<string>MacMonger</string>
+	<key>CFBundleIconFile</key>
+	<string>MacMonger</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>0.1.0</string>
+	<key>CFBundleVersion</key>
+	<string>1</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>11.0</string>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.utilities</string>
+	<key>NSHighResolutionCapable</key>
+	<true/>
+	<key>NSPrincipalClass</key>
+	<string>NSApplication</string>
+	<key>NSHumanReadableCopyright</key>
+	<string>MIT licence. Treemap layout after SpaceMonger 1.4 by Sean Werkema.</string>
+	<key>NSDesktopFolderUsageDescription</key>
+	<string>MacMonger reads file sizes to show where your disk space goes.</string>
+	<key>NSDocumentsFolderUsageDescription</key>
+	<string>MacMonger reads file sizes to show where your disk space goes.</string>
+	<key>NSDownloadsFolderUsageDescription</key>
+	<string>MacMonger reads file sizes to show where your disk space goes.</string>
+	<key>NSRemovableVolumesUsageDescription</key>
+	<string>MacMonger reads file sizes to show where the space on this disk goes.</string>
+	<key>NSNetworkVolumesUsageDescription</key>
+	<string>MacMonger reads file sizes to show where the space on this volume goes.</string>
+</dict>
+</plist>
